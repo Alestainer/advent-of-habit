@@ -42,11 +42,14 @@ pip install -r requirements.txt
 
 5. Build the app:
 ```bash
-chmod +x build_macos_app_simple.sh
-./build_macos_app_simple.sh
+chmod +x build_macos_app.sh
+./build_macos_app.sh
 ```
 
-6. The app will be created at `dist/Advent of Habit.app`
+The app will be created at `dist/Advent of Habit.app`. You can then:
+- Run it directly from the `dist` folder
+- Move it to your Applications folder
+- Add it to Login Items for automatic startup
 
 ## Usage
 

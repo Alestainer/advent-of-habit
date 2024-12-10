@@ -1,12 +1,13 @@
 # Advent of Habit
 
-A minimalist habit tracker that helps you build and maintain a daily habit. It automatically appears each morning and stays on top of other windows until you've checked off your habit for the day.
+A minimalist habit tracker that helps you build and maintain daily habits. It automatically appears during your chosen time window (morning or evening) and stays on top of other windows until you've checked off your habits for the day.
 
 ## Features
 
 - 🎯 Track up to 3 daily habits
+- ⏰ Choose your preferred check-in time (morning 6-11 AM or evening 6-11 PM)
 - 📊 Shows completion ratio for the last 21 days (e.g., "15/21" means completed 15 out of the last 21 days)
-- ⏰ Automatically appears between 6-11 AM if you haven't checked your habit for the day
+- 📅 Calendar view to visualize your progress
 - 🔝 Stays on top of other windows until minimized
 - 🔄 Minimizes to menu bar for easy access
 - 💾 Automatically saves your progress
@@ -14,12 +15,11 @@ A minimalist habit tracker that helps you build and maintain a daily habit. It a
 
 ## Installation
 
-### Option 1: Direct Download (Recommended)
-1. Download the latest release from the [Releases](../../releases) page
-2. Move `Advent of Habit.app` to your Applications folder
-3. Double-click to launch
-4. On first launch, enter up to 3 habits you want to track
-5. Optional: Add to Login Items to start automatically
+### Option 1: Run from Repository (Recommended)
+1. Clone or download this repository
+2. Navigate to the `dist` folder
+3. Double-click `Advent of Habit.app`
+4. Optional: Move to Applications folder and add to Login Items
 
 ### Option 2: Build from Source
 1. Ensure you have Python 3.8+ installed
@@ -54,14 +54,23 @@ chmod +x build_macos_app_simple.sh
 1. When you first launch the app, you'll see a welcome screen
 2. Enter up to 3 habits you want to track
 3. Default suggestions are provided (Meditation, Journaling, Exercise)
-4. Click "Start Tracking" to begin
+4. Choose your preferred check-in time:
+   - Morning (6-11 AM)
+   - Evening (6-11 PM)
+5. Click "Start Tracking" to begin
 
 ### Daily Usage
-1. The app appears automatically each morning (6-11 AM)
+1. The app appears automatically during your chosen time window
 2. Check off habits as you complete them
 3. Click ✕ to minimize to menu bar
-4. Click the menu bar icon to show the window again
+4. Click the green checkmark in the menu bar to show the window again
 5. Progress is saved automatically
+
+### Calendar View
+- Switch to the "Calendar" tab to see your progress over time
+- Select a habit to view its completion history
+- Green dates indicate completed habits
+- Red dates indicate missed habits
 
 ### Understanding the Numbers
 - Each habit shows a ratio like "7/21"
@@ -70,16 +79,17 @@ chmod +x build_macos_app_simple.sh
 - This helps you see your consistency over time
 
 ### Menu Bar Options
-- Click the menu bar icon to:
-  - Show the main window
-  - Quit the application
+- Click the green checkmark icon to show the window
+- Right-click for additional options:
+  - Show Window
+  - Quit
 
 ## Data Storage
 
 Your data is stored locally at:
 ```
 ~/Library/Application Support/Advent of Habit/
-├── config.json         # Your habit settings
+├── config.json         # Your habit settings and time preference
 └── habit_data.json    # Your daily progress
 ```
 

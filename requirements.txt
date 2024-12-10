@@ -1,0 +1,4 @@
+PyQt6==6.4.2
+apscheduler==3.10.4
+pyinstaller==6.3.0
+cairosvg==2.7.1 

@@ -25,7 +25,7 @@ A minimalist habit tracker that helps you build and maintain daily habits. It au
 1. Ensure you have Python 3.8+ installed
 2. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/advent-of-habit.git
+git clone https://github.com/alestainer/advent-of-habit.git
 cd advent-of-habit
 ```
 

@@ -9,7 +9,7 @@ A minimalist habit tracker that helps you build and maintain daily habits. It au
 - 📊 Shows completion ratio for the last 21 days (e.g., "15/21" means completed 15 out of the last 21 days)
 - 📅 Calendar view to visualize your progress
 - 🔝 Stays on top of other windows until minimized
-- 🔄 Minimizes to menu bar for easy access
+- 🔄 Minimizes to a green checkmark in your menu bar for easy access
 - 💾 Automatically saves your progress
 - 🎨 Clean, modern interface
 

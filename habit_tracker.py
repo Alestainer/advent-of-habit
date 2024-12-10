@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QLineEdit, QHBoxLayout, QMessageBox, QDialog,
                            QTimeEdit, QCalendarWidget, QTabWidget, QRadioButton)
 from PyQt6.QtCore import Qt, QTimer, QTime, QDate
-from PyQt6.QtGui import QFont, QIcon, QAction, QTextCharFormat, QColor
+from PyQt6.QtGui import QFont, QIcon, QAction, QTextCharFormat, QColor, QPixmap, QPainter, QPen
 
 
 class InitialSetupDialog(QDialog):
@@ -420,12 +420,27 @@ class HabitWindow(QMainWindow):
     def setupTrayIcon(self) -> None:
         self.tray_icon = QSystemTrayIcon(self)
         
-        icon = QIcon.fromTheme("checkbox")
-        if not icon.isNull():
-            self.tray_icon.setIcon(icon)
+        # Create a custom icon
+        icon = QIcon()
+        pixmap = QIcon.fromTheme("checkbox").pixmap(32, 32)
+        if pixmap.isNull():
+            # Create a simple checkmark icon if system icon is not available
+            pixmap = QPixmap(32, 32)
+            pixmap.fill(QColor("#27AE60"))  # Green background
+            painter = QPainter(pixmap)
+            painter.setPen(QPen(Qt.GlobalColor.white, 2))
+            painter.drawLine(8, 16, 14, 22)
+            painter.drawLine(14, 22, 24, 10)
+            painter.end()
+            icon = QIcon(pixmap)
+        else:
+            icon = QIcon(pixmap)
+        
+        self.tray_icon.setIcon(icon)
+        self.tray_icon.setToolTip("Advent of Habit")  # Add tooltip
         
         tray_menu = QMenu()
-        show_action = QAction("Show", self)
+        show_action = QAction("Show Window", self)  # More descriptive text
         quit_action = QAction("Quit", self)
         show_action.triggered.connect(self.show)
         quit_action.triggered.connect(QApplication.instance().quit)
@@ -437,6 +452,7 @@ class HabitWindow(QMainWindow):
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
         
+        # Both click and double-click will show the window
         self.tray_icon.activated.connect(self.trayIconActivated)
     
     def trayIconActivated(self, reason: QSystemTrayIcon.ActivationReason) -> None:

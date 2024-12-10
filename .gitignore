@@ -6,7 +6,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -29,7 +28,6 @@ env/
 *.manifest
 *.spec
 build/
-dist/
 
 # macOS
 .DS_Store

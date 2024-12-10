@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import os
 import sys
 import json
 import calendar
+import platform
 from datetime import datetime, timedelta, time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -11,6 +13,31 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QTimeEdit, QCalendarWidget, QTabWidget, QRadioButton)
 from PyQt6.QtCore import Qt, QTimer, QTime, QDate
 from PyQt6.QtGui import QFont, QIcon, QAction, QTextCharFormat, QColor, QPixmap, QPainter, QPen
+
+
+def get_data_dir() -> Path:
+    """Get the appropriate data directory for the current platform."""
+    system = platform.system()
+    home = Path.home()
+    
+    if system == "Darwin":  # macOS
+        return home / "Library/Application Support/Advent of Habit"
+    elif system == "Windows":
+        return Path(os.getenv("APPDATA")) / "Advent of Habit"
+    else:  # Linux and others
+        return home / ".local/share/advent-of-habit"
+
+
+def get_system_font() -> str:
+    """Get the appropriate system font for the current platform."""
+    system = platform.system()
+    
+    if system == "Darwin":
+        return ".AppleSystemUIFont"
+    elif system == "Windows":
+        return "Segoe UI"
+    else:  # Linux and others
+        return "Ubuntu"
 
 
 class InitialSetupDialog(QDialog):
@@ -177,11 +204,14 @@ class HabitWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         
-        # Set up proper macOS paths
-        app_support = Path.home() / "Library/Application Support/Advent of Habit"
-        app_support.mkdir(parents=True, exist_ok=True)
-        self.data_file = app_support / "habit_data.json"
-        self.config_file = app_support / "config.json"
+        # Set up proper platform-specific paths
+        self.data_dir = get_data_dir()
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.data_file = self.data_dir / "habit_data.json"
+        self.config_file = self.data_dir / "config.json"
+        
+        # Platform-specific window flags
+        self.system = platform.system()
         
         # Check if this is first launch
         if not self.config_file.exists():
@@ -229,11 +259,26 @@ class HabitWindow(QMainWindow):
     
     def initUI(self) -> None:
         self.setWindowTitle("Advent of Habit")
-        self.setWindowFlags(
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.Tool
-        )
+        
+        # Platform-specific window flags
+        if self.system == "Darwin":  # macOS
+            self.setWindowFlags(
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.Tool
+            )
+        elif self.system == "Windows":
+            self.setWindowFlags(
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.SubWindow
+            )
+        else:  # Linux
+            self.setWindowFlags(
+                Qt.WindowType.WindowStaysOnTopHint |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.Dialog
+            )
         
         # Create main widget and layout
         main_widget = QWidget()
@@ -254,210 +299,187 @@ class HabitWindow(QMainWindow):
         # Create tab widget
         tab_widget = QTabWidget()
         
-        # Habits tab
-        habits_widget = QWidget()
+        # Create and add the habits tab
+        habits_tab = QWidget()
         habits_layout = QVBoxLayout()
+        habits_tab.setLayout(habits_layout)
         
-        # Add date
-        date_label = QLabel(datetime.now().strftime("%B %d, %Y"))
-        date_label.setFont(QFont(".AppleSystemUIFont", 14, QFont.Weight.Bold))
-        date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        habits_layout.addWidget(date_label)
-        
-        # Add habits and streak tracking
-        self.checkboxes: Dict[str, QCheckBox] = {}
-        self.streak_labels: Dict[str, QLabel] = {}
-        
+        # Add checkboxes for habits
+        self.checkboxes = {}
         for habit in self.habits:
-            habit_layout = QHBoxLayout()
-            
-            # Checkbox
             checkbox = QCheckBox(habit)
-            checkbox.setFont(QFont(".AppleSystemUIFont", 12))
-            checkbox.stateChanged.connect(self.saveData)
+            checkbox.stateChanged.connect(lambda state, h=habit: self.habitStateChanged(h, state))
             self.checkboxes[habit] = checkbox
-            habit_layout.addWidget(checkbox)
+            habits_layout.addWidget(checkbox)
             
-            # Streak label
-            streak_label = QLabel("0/0")
-            streak_label.setFont(QFont(".AppleSystemUIFont", 12))
-            streak_label.setStyleSheet("color: #27AE60;")
-            self.streak_labels[habit] = streak_label
-            habit_layout.addWidget(streak_label)
-            
-            habits_layout.addLayout(habit_layout)
+            # Add completion ratio label
+            ratio_label = QLabel()
+            ratio_label.setObjectName(f"ratio_{habit}")  # For updating later
+            habits_layout.addWidget(ratio_label)
         
-        habits_widget.setLayout(habits_layout)
-        tab_widget.addTab(habits_widget, "Today")
+        habits_layout.addStretch()
+        tab_widget.addTab(habits_tab, "Habits")
         
-        # Calendar tab
-        calendar_widget = QWidget()
+        # Create and add the calendar tab
+        calendar_tab = QWidget()
         calendar_layout = QVBoxLayout()
+        calendar_tab.setLayout(calendar_layout)
         
-        # Habit selector for calendar
-        self.habit_selector = QMenu()
-        habit_button = QPushButton("Select Habit")
+        # Add habit selection for calendar
+        habit_selector = QHBoxLayout()
         for habit in self.habits:
-            action = self.habit_selector.addAction(habit)
-            action.triggered.connect(lambda checked, h=habit: self.updateCalendar(h))
+            radio = QRadioButton(habit)
+            radio.toggled.connect(lambda checked, h=habit: self.updateCalendar(h) if checked else None)
+            habit_selector.addWidget(radio)
         
-        habit_button.clicked.connect(lambda: self.habit_selector.exec(habit_button.mapToGlobal(habit_button.rect().bottomLeft())))
-        calendar_layout.addWidget(habit_button)
+        calendar_layout.addLayout(habit_selector)
         
-        # Calendar
+        # Add calendar widget
         self.calendar = CalendarView()
         calendar_layout.addWidget(self.calendar)
         
-        calendar_widget.setLayout(calendar_layout)
-        tab_widget.addTab(calendar_widget, "Calendar")
+        tab_widget.addTab(calendar_tab, "Calendar")
         
         main_layout.addWidget(tab_widget)
         
-        # Set window properties
-        self.setStyleSheet("""
-            QMainWindow, QTabWidget, QWidget {
+        # Platform-specific styling
+        system_font = get_system_font()
+        self.setStyleSheet(f"""
+            QMainWindow {{
                 background-color: #2C3E50;
+            }}
+            QWidget {{
                 color: white;
-            }
-            QTabWidget::pane {
+                font-family: "{system_font}";
+            }}
+            QTabWidget::pane {{
                 border: none;
-            }
-            QTabWidget::tab-bar {
+            }}
+            QTabWidget::tab-bar {{
                 alignment: center;
-            }
-            QTabBar::tab {
+            }}
+            QTabBar::tab {{
                 background-color: #34495E;
                 color: white;
                 padding: 8px 20px;
                 margin: 2px;
                 border-radius: 4px;
-            }
-            QTabBar::tab:selected {
+            }}
+            QTabBar::tab:selected {{
                 background-color: #3498DB;
-            }
-            QCheckBox {
+            }}
+            QPushButton#close {{
+                background-color: transparent;
                 color: white;
-                padding: 5px;
-            }
-            QCheckBox::indicator {
+                border: none;
+                font-size: 16px;
+            }}
+            QPushButton#close:hover {{
+                background-color: #E74C3C;
+            }}
+            QCheckBox {{
+                color: white;
+                font-size: 14px;
+                padding: 8px;
+            }}
+            QCheckBox::indicator {{
                 width: 20px;
                 height: 20px;
-            }
-            QCheckBox::indicator:unchecked {
+            }}
+            QCheckBox::indicator:unchecked {{
                 background-color: #34495E;
                 border: 2px solid #ECF0F1;
                 border-radius: 4px;
-            }
-            QCheckBox::indicator:checked {
+            }}
+            QCheckBox::indicator:checked {{
                 background-color: #27AE60;
                 border: 2px solid #ECF0F1;
                 border-radius: 4px;
-            }
-            QLabel {
+            }}
+            QRadioButton {{
                 color: white;
-                padding: 10px;
-            }
-            QPushButton {
-                background-color: #3498DB;
+                padding: 8px;
+            }}
+            QRadioButton::indicator {{
+                width: 20px;
+                height: 20px;
+            }}
+            QRadioButton::indicator:unchecked {{
+                background-color: #34495E;
+                border: 2px solid #ECF0F1;
+                border-radius: 10px;
+            }}
+            QRadioButton::indicator:checked {{
+                background-color: #27AE60;
+                border: 2px solid #ECF0F1;
+                border-radius: 10px;
+            }}
+            QLabel {{
                 color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 5px 10px;
-            }
-            QPushButton:hover {
-                background-color: #2980B9;
-            }
-            QPushButton#close {
-                background-color: transparent;
-                color: #E74C3C;
-                font-weight: bold;
-                font-size: 16px;
-                border-radius: 12px;
-                padding: 0;
-                margin: 5px;
-            }
-            QPushButton#close:hover {
-                background-color: #E74C3C;
-                color: white;
-            }
+                padding: 5px;
+            }}
         """)
         
         self.setFixedSize(400, 500)
-        self.move(50, 50)
-    
-    def updateCalendar(self, habit: str) -> None:
-        try:
-            with open(self.data_file, 'r') as f:
-                data = json.load(f)
-                self.calendar.updateHabitData(data, habit)
-        except (json.JSONDecodeError, FileNotFoundError):
-            pass
-    
-    def setupMorningCheck(self) -> None:
-        self.morning_timer = QTimer(self)
-        self.morning_timer.timeout.connect(self.checkMorningShow)
-        self.morning_timer.start(60000)  # Check every minute
-        self.checkMorningShow()
-    
-    def checkMorningShow(self) -> None:
-        current_time = QTime.currentTime()
-        
-        # Show between start_time and end_time if not checked today
-        if self.start_time <= current_time <= self.end_time:
-            today = datetime.now().strftime("%Y-%m-%d")
-            try:
-                with open(self.data_file, 'r') as f:
-                    data = json.load(f)
-                    if today not in data:
-                        self.show()
-                        self.raise_()
-                        self.activateWindow()
-            except (json.JSONDecodeError, FileNotFoundError):
-                self.show()
-                self.raise_()
-                self.activateWindow()
     
     def setupTrayIcon(self) -> None:
+        # Create the tray icon
         self.tray_icon = QSystemTrayIcon(self)
         
-        # Create a custom icon
-        icon = QIcon()
-        pixmap = QIcon.fromTheme("checkbox").pixmap(32, 32)
-        if pixmap.isNull():
-            # Create a simple checkmark icon if system icon is not available
-            pixmap = QPixmap(32, 32)
-            pixmap.fill(QColor("#27AE60"))  # Green background
-            painter = QPainter(pixmap)
-            painter.setPen(QPen(Qt.GlobalColor.white, 2))
-            painter.drawLine(8, 16, 14, 22)
-            painter.drawLine(14, 22, 24, 10)
-            painter.end()
-            icon = QIcon(pixmap)
-        else:
-            icon = QIcon(pixmap)
-        
-        self.tray_icon.setIcon(icon)
-        self.tray_icon.setToolTip("Advent of Habit")  # Add tooltip
-        
+        # Create the tray menu
         tray_menu = QMenu()
-        show_action = QAction("Show Window", self)  # More descriptive text
+        show_action = QAction("Show Window", self)
         quit_action = QAction("Quit", self)
+        
         show_action.triggered.connect(self.show)
-        quit_action.triggered.connect(QApplication.instance().quit)
+        quit_action.triggered.connect(self.quit_app)
         
         tray_menu.addAction(show_action)
-        tray_menu.addSeparator()
         tray_menu.addAction(quit_action)
         
         self.tray_icon.setContextMenu(tray_menu)
+        
+        # Set up platform-specific tray icon behavior
+        if platform.system() == "Darwin":  # macOS
+            # Create a green checkmark icon
+            pixmap = QPixmap(32, 32)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            painter.setPen(QPen(QColor("#27AE60"), 3))
+            painter.drawLine(8, 16, 14, 22)
+            painter.drawLine(14, 22, 24, 12)
+            painter.end()
+            self.tray_icon.setIcon(QIcon(pixmap))
+        else:  # Windows and Linux
+            # Load the app icon for the tray
+            self.tray_icon.setIcon(QIcon("images/icon.png"))
+        
+        # Show the tray icon
         self.tray_icon.show()
         
-        # Both click and double-click will show the window
-        self.tray_icon.activated.connect(self.trayIconActivated)
+        # Connect the tray icon activation signal
+        if platform.system() == "Darwin":  # macOS
+            # macOS: left-click shows context menu
+            self.tray_icon.activated.connect(lambda reason: self.tray_icon.contextMenu().popup(
+                self.tray_icon.geometry().center()
+            ))
+        else:  # Windows and Linux
+            # Windows/Linux: left-click shows window, right-click shows menu
+            self.tray_icon.activated.connect(self.trayIconActivated)
     
     def trayIconActivated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.show()
+        if platform.system() != "Darwin":  # Not needed on macOS
+            if reason == QSystemTrayIcon.ActivationReason.Trigger:  # Left click
+                self.show()
+            elif reason == QSystemTrayIcon.ActivationReason.Context:  # Right click
+                self.tray_icon.contextMenu().popup(
+                    self.tray_icon.geometry().center()
+                )
+    
+    def quit_app(self) -> None:
+        """Properly clean up before quitting."""
+        self.tray_icon.hide()
+        QApplication.quit()
     
     def calculateStats(self, habit: str, data: Dict[str, Dict[str, bool]]) -> Tuple[int, int]:
         today = datetime.now().date()
